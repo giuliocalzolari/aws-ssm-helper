@@ -5,8 +5,7 @@
  - `boto3`
  - `botocore`
  
-in order to simplify the managerment of your EC2 instances I strongly suggest to install SSM everywhere following the main [documentation]
-(http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial_run_command.html)
+in order to simplify the managerment of your EC2 instances I strongly suggest to install SSM everywhere following the main [documentation](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial_run_command.html)
 
 Using SSM you can run quickly any command 
 
