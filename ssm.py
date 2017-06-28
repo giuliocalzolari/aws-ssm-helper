@@ -10,12 +10,6 @@ import argparse
 from termcolor import colored
 from datetime import datetime, timedelta
 
-ACCOUNT = {
-    "dev": "111111111111",
-    "stage": "222222222222",
-    "prod": "3333333333333"
-}
-
 
 class SSMRunner(object):
 
@@ -29,9 +23,6 @@ class SSMRunner(object):
 
         if self.cfg.iam == "":
             return boto3.client(service, region_name=self.cfg.region)
-
-        if self.cfg.iam == "auto":
-            self.cfg.iam = "arn:aws:iam::{}:role/role-admin".format(ACCOUNT[self.cfg.stage])
 
         if self.cfg.credentials == {}:
             print "assume Role: {}".format(self.cfg.iam)
@@ -59,16 +50,21 @@ class SSMRunner(object):
                 RoleArn=self.cfg.iam,
                 RoleSessionName="ssm-run")["Credentials"]
 
-    def run(self):
-        target_str = self.cfg.target.split("=")
+    def get_target(self):
+        self.target = []
+        for tags in  self.cfg.target.split(","):
+            t = tags.split("=")
+            self.target.append({
+                'Key': t[0],
+                'Values': [t[1]]
+            })
 
-        target = [{
-            'Key': target_str[0],
-            'Values': target_str[1].split(",")
-        }]
+        return self.target
+
+    def run(self):
 
         command = self.ssm.send_command(
-            Targets=target,
+            Targets=self.get_target(),
             DocumentName='AWS-RunShellScript',
             Parameters={
                 "commands": [self.cfg.command]
@@ -77,7 +73,6 @@ class SSMRunner(object):
         )
 
         status = 'Pending'
-
         while status == 'Pending' or status == 'InProgress':
 
             self.renew_sts()
@@ -98,18 +93,18 @@ class SSMRunner(object):
                 InstanceId=result["InstanceId"],
             )
             if result["Status"] == "Success":
-                print "[Command run on {} result: {}]".format(
+                print "\n[Command run on {} result: {}]".format(
                     colored(result["InstanceId"], 'cyan'),
                     colored(result["Status"], 'green')
                 )
-                print sys.stdout.write(output.get("StandardOutputContent", ""))
+                sys.stdout.write(output.get("StandardOutputContent", ""))
             elif result["Status"] == "Failed":
-                print "[Command run on {} result: {}]".format(
+                print "\n[Command run on {} result: {}]".format(
                     colored(result["InstanceId"], 'cyan'),
                     colored(result["Status"], 'red')
                 )
-                print sys.stdout.write(output.get("StandardOutputContent", ""))
-                print sys.stdout.write(output.get("StandardErrorContent", ""))
+                sys.stdout.write(output.get("StandardOutputContent", ""))
+                sys.stdout.write(output.get("StandardErrorContent", ""))
             else:
                 print colored("NOT SURE", "yellow")
                 print output
@@ -117,12 +112,11 @@ class SSMRunner(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='SSM Run Helper')
-    parser.add_argument('--stage', default="dev", help='stage')
     parser.add_argument('--region', default=os.environ.get("AWS_DEFAULT_REGION", "eu-west-1"), help='AWS region')
     parser.add_argument('--command', help='command')
     parser.add_argument('--target', help='target')
     parser.add_argument('--timeout', default=30, help='timeout')
-    parser.add_argument('--iam', default="auto", help='IAM to assume')
+    parser.add_argument('--iam', default=os.environ.get("AWS_SSM_ROLE", ""), help='IAM to assume')
     args = parser.parse_args()
 
     try:
