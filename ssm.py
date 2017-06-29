@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-"""Summary
+"""
+SSM CLI Helper
+
 """
 
 import time
@@ -36,7 +38,7 @@ class SSMRunner(object):
         """Init class
 
         Args:
-            args (TYPE): Description
+            args (object): Description
         """
         self.cfg = args
         self.cfg.credentials = {}
@@ -65,8 +67,7 @@ class SSMRunner(object):
             logger.info("assume Role: {}".format(self.cfg.iam))
             sts_client = boto3.client("sts")
             self.cfg.credentials = sts_client.assume_role(
-                RoleArn=self.cfg.iam,
-                RoleSessionName="ssm-run")["Credentials"]
+                RoleArn=self.cfg.iam, RoleSessionName="ssm-run")["Credentials"]
 
         return boto3.client(
             service,
@@ -91,8 +92,7 @@ class SSMRunner(object):
             logger.info("Renew STS: {}".format(iam))
             sts_client = boto3.client("sts")
             self.cfg.credentials = sts_client.assume_role(
-                RoleArn=self.cfg.iam,
-                RoleSessionName="ssm-run")["Credentials"]
+                RoleArn=self.cfg.iam, RoleSessionName="ssm-run")["Credentials"]
 
     def get_target(self):
         """Parsing string to define the Target to send the command
@@ -100,31 +100,25 @@ class SSMRunner(object):
         http://docs.aws.amazon.com/systems-manager/latest/userguide/send-commands-multiple.html
 
         Returns:
-            list of dictionary: Target to filter the instaces registered into SSM
+            list of dict: Target to filter the instaces registered into SSM
         """
         self.target = []
         for tags in self.cfg.target.split(","):
             t = tags.split("=")
-            self.target.append({
-                "Key": t[0],
-                "Values": [t[1]]
-            })
+            self.target.append({"Key": t[0], "Values": [t[1]]})
 
         return self.target
 
     def run(self):
-        """Main command
+        """Main
         """
 
         logger.debug("send_command : {}".format(self.cfg.command))
         command = self.ssm.send_command(
             Targets=self.get_target(),
             DocumentName="AWS-RunShellScript",
-            Parameters={
-                "commands": [self.cfg.command]
-            },
-            TimeoutSeconds=self.cfg.timeout
-        )
+            Parameters={"commands": [self.cfg.command]},
+            TimeoutSeconds=self.cfg.timeout)
 
         status = "Pending"
         while status == "Pending" or status == "InProgress":
@@ -141,8 +135,7 @@ class SSMRunner(object):
         logger.debug("get the full output of command: {}".format(
             command["Command"]["CommandId"]))
         results = self.ssm.list_command_invocations(
-            CommandId=running_cmd["Commands"][0]["CommandId"]
-        )
+            CommandId=running_cmd["Commands"][0]["CommandId"])
 
         for result in results["CommandInvocations"]:
 
@@ -150,19 +143,16 @@ class SSMRunner(object):
                 command["Command"]["CommandId"], result["InstanceId"]))
             output = self.ssm.get_command_invocation(
                 CommandId=running_cmd["Commands"][0]["CommandId"],
-                InstanceId=result["InstanceId"],
-            )
+                InstanceId=result["InstanceId"], )
             if result["Status"] == "Success":
                 logger.info("Command run on {} result: {}".format(
                     colored(result["InstanceId"], "cyan"),
-                    colored(result["Status"], "green")
-                ))
+                    colored(result["Status"], "green")))
                 sys.stdout.write(output.get("StandardOutputContent", ""))
             elif result["Status"] == "Failed":
                 logger.error("Command run on {} result: {}".format(
                     colored(result["InstanceId"], "cyan"),
-                    colored(result["Status"], "red")
-                ))
+                    colored(result["Status"], "red")))
                 sys.stdout.write(output.get("StandardOutputContent", ""))
                 sys.stdout.write(output.get("StandardErrorContent", ""))
             else:
@@ -173,14 +163,21 @@ class SSMRunner(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="SSM Run Helper")
     parser.add_argument(
-        "--region", default=os.environ.get("AWS_DEFAULT_REGION", "eu-west-1"), help="AWS region")
+        "--region",
+        default=os.environ.get("AWS_DEFAULT_REGION", "eu-west-1"),
+        help="AWS region")
     parser.add_argument("--command", help="command")
     parser.add_argument("--target", help="target")
     parser.add_argument("--timeout", default=30, help="timeout")
     parser.add_argument(
-        "--iam", default=os.environ.get("AWS_SSM_ROLE", ""), help="IAM to assume")
-    parser.add_argument("-v", "--verbose", help="increase output verbosity",
-                        action="store_true")
+        "--iam",
+        default=os.environ.get("AWS_SSM_ROLE", ""),
+        help="IAM to assume")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="increase output verbosity",
+        action="store_true")
     args = parser.parse_args()
 
     try:
