@@ -44,7 +44,7 @@ you can use multiple tags divided by `,` for example
 ```
 $ ./ssm.py -h
 usage: SSM Run Helper [-h] [--region REGION] [--command COMMAND]
-                      [--target TARGET] [--timeout TIMEOUT] [--iam IAM]
+                      [--target TARGET] [--timeout TIMEOUT] [--iam IAM] [-v]
 
 optional arguments:
   -h, --help         show this help message and exit
@@ -53,6 +53,7 @@ optional arguments:
   --target TARGET    target
   --timeout TIMEOUT  timeout
   --iam IAM          IAM to assume
+  -v, --verbose      increase output verbosity
    
 ```
 
